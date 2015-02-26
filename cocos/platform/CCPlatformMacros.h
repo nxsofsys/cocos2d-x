@@ -39,7 +39,7 @@ Copyright (c) 2013-2014 Chukong Technologies
 #define CREATE_FUNC(__TYPE__) \
 static __TYPE__* create() \
 { \
-    __TYPE__ *pRet = new __TYPE__(); \
+    __TYPE__ *pRet = new(std::nothrow) __TYPE__(); \
     if (pRet && pRet->init()) \
     { \
         pRet->autorelease(); \
@@ -61,7 +61,7 @@ static __TYPE__* create() \
 #define NODE_FUNC(__TYPE__) \
 CC_DEPRECATED_ATTRIBUTE static __TYPE__* node() \
 { \
-    __TYPE__ *pRet = new __TYPE__(); \
+    __TYPE__ *pRet = new(std::nothrow) __TYPE__(); \
     if (pRet && pRet->init()) \
     { \
         pRet->autorelease(); \
@@ -270,6 +270,13 @@ public: virtual void set##funName(varType var)   \
 #else
     #define CC_DEPRECATED_ATTRIBUTE
 #endif 
+
+/*
+ * macro to mark things deprecated as of a particular version
+ * can be used with artibrary parameters which are thrown away
+ * e.g. CC_DEPRECATED(4.0) or CC_DEPRECATED(4.0, "not going to need this anymore") etc.
+ */
+#define CC_DEPRECATED(...) CC_DEPRECATED_ATTRIBUTE
 
 /*
  * only certain compiler support __attribute__((format))

@@ -29,6 +29,7 @@ THE SOFTWARE.
 #include "CCFileUtils-win32.h"
 #include "platform/CCCommon.h"
 #include <Shlobj.h>
+#include <cstdlib>
 
 using namespace std;
 
@@ -59,14 +60,16 @@ static void _checkPath()
 {
     if (0 == s_resourcePath.length())
     {
-        WCHAR utf16Path[CC_MAX_PATH] = {0};
-        GetCurrentDirectoryW(sizeof(utf16Path)-1, utf16Path);
-        
-        char utf8Path[CC_MAX_PATH] = {0};
-        int nNum = WideCharToMultiByte(CP_UTF8, 0, utf16Path, -1, utf8Path, sizeof(utf8Path), nullptr, nullptr);
+        WCHAR *pUtf16ExePath = nullptr;
+        _get_wpgmptr(&pUtf16ExePath);
 
-        s_resourcePath = convertPathFormatToUnixStyle(utf8Path);
-        s_resourcePath.append("/");
+        // We need only directory part without exe
+        WCHAR *pUtf16DirEnd = wcsrchr(pUtf16ExePath, L'\\');
+
+        char utf8ExeDir[CC_MAX_PATH] = { 0 };
+        int nNum = WideCharToMultiByte(CP_UTF8, 0, pUtf16ExePath, pUtf16DirEnd-pUtf16ExePath+1, utf8ExeDir, sizeof(utf8ExeDir), nullptr, nullptr);
+
+        s_resourcePath = convertPathFormatToUnixStyle(utf8ExeDir);
     }
 }
 
@@ -147,7 +150,7 @@ static Data getData(const std::string& filename, bool forString)
         WCHAR wszBuf[CC_MAX_PATH] = {0};
         MultiByteToWideChar(CP_UTF8, 0, fullPath.c_str(), -1, wszBuf, sizeof(wszBuf)/sizeof(wszBuf[0]));
 
-        HANDLE fileHandle = ::CreateFileW(wszBuf, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, nullptr);
+        HANDLE fileHandle = ::CreateFileW(wszBuf, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, nullptr);
         CC_BREAK_IF(fileHandle == INVALID_HANDLE_VALUE);
         
         size = ::GetFileSize(fileHandle, nullptr);
@@ -168,8 +171,12 @@ static Data getData(const std::string& filename, bool forString)
 
         if (!successed)
         {
-            free(buffer);
-            buffer = nullptr;
+            // should determine buffer value, or it will cause memory leak
+            if (buffer)
+            {
+                free(buffer);
+                buffer = nullptr;
+            }    
         }
     } while (0);
     
@@ -185,6 +192,9 @@ static Data getData(const std::string& filename, bool forString)
 
         msg = msg + filename + ") failed, error code is " + errorCodeBuffer;
         CCLOG("%s", msg.c_str());
+
+        if (buffer)
+            free(buffer);
     }
     else
     {
@@ -222,7 +232,7 @@ unsigned char* FileUtilsWin32::getFileData(const std::string& filename, const ch
         WCHAR wszBuf[CC_MAX_PATH] = {0};
         MultiByteToWideChar(CP_UTF8, 0, fullPath.c_str(), -1, wszBuf, sizeof(wszBuf)/sizeof(wszBuf[0]));
 
-        HANDLE fileHandle = ::CreateFileW(wszBuf, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, nullptr);
+        HANDLE fileHandle = ::CreateFileW(wszBuf, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, NULL, OPEN_EXISTING, NULL, nullptr);
         CC_BREAK_IF(fileHandle == INVALID_HANDLE_VALUE);
         
         *size = ::GetFileSize(fileHandle, nullptr);
